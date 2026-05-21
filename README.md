@@ -1,4 +1,4 @@
-Academic Planner Website
+ACADEMIC PLANNER WEBSITE
 
 An Academic Planner Website designed for college students to manage their academic activities efficiently.
 This project helps students organize schedules, track assignments, manage tasks, and stay productive through a clean and user-friendly interface.
@@ -15,25 +15,18 @@ Features:
 🧑‍💻 Local Data Storage
 
 Technologies Used:
-HTML5
-CSS3
-JavaScript
+1. HTML5
+2. CSS3
+3. JavaScript
 
 Purpose of the Project:
 The main objective of this project is to provide students with a simple platform to manage their academic life in one place. It improves productivity and helps users keep track of classes, assignments, and important deadlines.
 
-Project Structure:
-Academic-Planner/
-│── index.html
-│── style.css
-│── script.js
-│── icon r.jpeg
-
 How to Run the Project:
-Download or clone the repository
-Open the project folder in VS Code
-Run index.html in your browser
+1. Download or clone the repository
+2. Open the project folder in VS Code
+3. Run index.html in your browser
 
 
-Author
+Author:
 Developed by Tiksha and Shreya
