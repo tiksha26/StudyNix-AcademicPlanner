@@ -74,6 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
 });
+
 // ===== STATE =====
 let state = {
   tasks: [],
@@ -90,8 +91,6 @@ let state = {
 // ===== LOCALSTORAGE =====
 function saveState() {
   localStorage.setItem('smartplanner_v1', JSON.stringify(state));
-  // Auto-save indicator (subtle)
-  showToast('Auto-saved', 'success', 1000);
 }
 function loadState() {
   const raw = localStorage.getItem('smartplanner_v1');
@@ -136,6 +135,9 @@ const SUBJECT_COLORS = {
   blue:   { bg:'rgba(80,180,255,0.15)',  bar:'linear-gradient(90deg,#50b4ff,#80ccff)' },
 };
 
+function showToast(msg, type='info') {
+  toast(msg, type);
+}
 function toast(msg, type='info') {
   const el = document.createElement('div');
   el.className = `toast-item ${type}`;
@@ -147,48 +149,44 @@ function toast(msg, type='info') {
 
 // ===== GREETING =====
 window.addEventListener("load",()=>{
-
-let hour = new Date().getHours();
-
-let greet = "Day";
-
-if(hour < 12){
-greet = "Morning";
-}
-else if(hour < 18){
-greet = "Afternoon";
-}
-else{
-greet = "Evening";
-}
-
-document.getElementById("greetTime").innerText = greet;
-
+  let hour = new Date().getHours();
+  let greet = "Day";
+  if(hour < 12){
+    greet = "Morning";
+  }
+  else if(hour < 18){
+    greet = "Afternoon";
+  }
+  else{
+    greet = "Evening";
+  }
+  document.getElementById("greetTime").innerText = greet;
 });
-//LIVE CLOCK//
+
+// ===== LIVE CLOCK =====
 setInterval(()=>{
-
-const now = new Date();
-
-document.getElementById("dateChip").innerHTML =
-now.toLocaleDateString() + " • " +
-now.toLocaleTimeString();
-
+  const now = new Date();
+  document.getElementById("dateChip").innerHTML =
+    now.toLocaleDateString() + " • " +
+    now.toLocaleTimeString();
 },1000);
-// KEYBOARD SHORTCUTS
+
+// ===== KEYBOARD SHORTCUTS =====
 document.addEventListener("keydown",(e)=>{
-
-if(e.key === "n"){
-openAddTask();
-}
-
+  // Only open task modal if not typing in an input/textarea
+  if(
+    e.key === "n" &&
+    document.activeElement.tagName !== 'INPUT' &&
+    document.activeElement.tagName !== 'TEXTAREA' &&
+    document.activeElement.tagName !== 'SELECT'
+  ){
+    openAddTask();
+  }
 });
-// AUTO-SAVE ON EXIT
+
+// ===== AUTO-SAVE ON EXIT =====
 window.addEventListener("beforeunload",()=>{
-
-localStorage.setItem("smartplanner-data",
-JSON.stringify(tasks));
-
+  saveState();
 });
 
 // ===== NAVIGATION =====
@@ -304,8 +302,11 @@ function validateTask() {
   }
   return valid;
 }
+
+// ===== FIXED SAVETASK - NO RERENDER WHILE MODAL OPEN =====
 function saveTask() {
   if (!validateTask()) return;
+
   const task = {
     id: state.editingTaskId || uid(),
     name: document.getElementById('tName').value.trim(),
@@ -315,8 +316,11 @@ function saveTask() {
     deadline: document.getElementById('tDeadline').value,
     status: document.getElementById('tStatus').value,
     hours: parseFloat(document.getElementById('tHours').value) || 0,
-    createdAt: state.editingTaskId ? (state.tasks.find(t=>t.id===state.editingTaskId)||{}).createdAt : Date.now(),
+    createdAt: state.editingTaskId
+      ? (state.tasks.find(t => t.id === state.editingTaskId) || {}).createdAt
+      : Date.now(),
   };
+
   if (state.editingTaskId) {
     const idx = state.tasks.findIndex(t => t.id === state.editingTaskId);
     if (idx !== -1) state.tasks[idx] = task;
@@ -325,10 +329,12 @@ function saveTask() {
     state.tasks.push(task);
     toast('Task added!', 'success');
   }
+
   saveState();
-  closeModal('taskModal');
-  renderAll();
+  closeModal('taskModal'); // ✅ Always close modal FIRST
+  renderAll();             // ✅ Then render AFTER modal is closed
 }
+
 function deleteTask(id) {
   if (!confirm('Delete this task?')) return;
   state.tasks = state.tasks.filter(t => t.id !== id);
@@ -366,25 +372,26 @@ function getRecommendations() {
     .slice(0, 5);
 }
 
-// ===== RENDER TASKS =====
+// ===== RENDER TASKS (✅ FIXED — done tasks no longer show overdue) =====
 function taskHTML(task, showCheck=true) {
   const days = daysUntil(task.deadline);
-  const isOverdue = days !== null && days < 0 && task.status !== 'done';
+  const isDone = task.status === 'done';
+  const isOverdue = days !== null && days < 0 && !isDone;
   const statusMap = { pending:'badge-pending', 'in-progress':'badge-in-progress', done:'badge-done' };
   const statusLabel = { pending:'Pending', 'in-progress':'In Progress', done:'Done' };
   const subj = state.subjects.find(s => s.id === task.subject);
   return `
-  <div class="task-item ${task.priority}" id="task-${task.id}">
-    ${showCheck ? `<div class="task-check ${task.status==='done'?'checked':''}" onclick="toggleTaskDone('${task.id}')">${task.status==='done'?'✓':''}</div>` : ''}
+  <div class="task-item ${task.priority} ${isDone ? 'task-done' : ''}" id="task-${task.id}">
+    ${showCheck ? `<div class="task-check ${isDone?'checked':''}" onclick="toggleTaskDone('${task.id}')">${isDone?'✓':''}</div>` : ''}
     <div class="task-body">
-      <div class="task-name ${task.status==='done'?'done-text':''}">${task.name}</div>
+      <div class="task-name ${isDone?'done-text':''}">${task.name}</div>
       <div class="task-meta">
         <span class="badge badge-${task.priority}"><span class="dot"></span>${task.priority}</span>
         <span class="badge ${statusMap[task.status]}">${statusLabel[task.status]}</span>
         ${subj ? `<span class="task-meta-item">📚 ${subj.name}</span>` : ''}
         <span class="task-meta-item">📅 ${formatDate(task.deadline)}</span>
         ${task.hours ? `<span class="task-meta-item">⏱ ${task.hours}h</span>` : ''}
-        ${isOverdue ? `<span class="deadline-pill urgent">⚠ Overdue</span>` : deadlinePill(task.deadline)}
+        ${isDone ? '' : (isOverdue ? `<span class="deadline-pill urgent">⚠ Overdue</span>` : deadlinePill(task.deadline))}
       </div>
     </div>
     <div class="task-actions">
@@ -624,8 +631,10 @@ function saveGoal() {
   toast('Goal added!','success');
 }
 function deleteGoal(id) {
+  if (!confirm('Delete this goal?')) return;
   state.goals = state.goals.filter(g=>g.id!==id);
   saveState(); renderGoals();
+  toast('Goal deleted.','info');
 }
 function updateGoalProgress(id, val) {
   const g = state.goals.find(x=>x.id===id);
@@ -683,7 +692,8 @@ function saveScheduleEvent() {
     color: document.getElementById('evColor').value,
   });
   saveState(); closeModal('scheduleModal'); renderSchedule();
-  toast('Event added!','success');
+  switchPanel('schedule');
+  toast('Event added! 📅','success');
 }
 function deleteEvent(id) {
   state.scheduleEvents = state.scheduleEvents.filter(e=>e.id!==id);
@@ -692,8 +702,8 @@ function deleteEvent(id) {
 function renderSchedule() {
   const el = document.getElementById('weekGrid');
   if (!el) return;
-  const today = new Date().getDay(); // 0=Sun
-  const todayIdx = today === 0 ? 6 : today - 1; // Mon=0
+  const today = new Date().getDay();
+  const todayIdx = today === 0 ? 6 : today - 1;
   el.innerHTML = DAYS.map((day, i) => {
     const events = state.scheduleEvents.filter(e=>e.day===i)
       .sort((a,b)=>a.time.localeCompare(b.time));
@@ -775,7 +785,6 @@ function renderPriorityBar() {
 function renderWeeklyBar() {
   const el = document.getElementById('weeklyBarChart');
   if (!el) return;
-  // tasks completed per day of week (simulated from createdAt)
   const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
   const counts = days.map((_,i)=>state.tasks.filter(t=>t.status==='done'&&new Date(t.createdAt).getDay()===(i+1)%7).length);
   const max=Math.max(1,...counts);
@@ -852,7 +861,6 @@ function updatePomoDisplay() {
 function saveSetting(key, val) {
   state.settings[key]=val; saveState();
 }
-
 function clearAllData() {
   if (!confirm('Clear ALL data? This cannot be undone.')) return;
   state={tasks:[],subjects:[],goals:[],scheduleEvents:[],settings:{name:'',semester:''},pomodoro:{sessions:0},activeFilter:'all',editingTaskId:null,editingSubjectId:null};
@@ -891,11 +899,7 @@ function renderAll() {
   loadSettings();
 }
 
-// ================================================================
 // ===== FORM VALIDATION DEMO =====
-// ================================================================
-
-// Populate subjects in the demo form
 function populateFormSubjects() {
   const sel = document.getElementById('fSubject');
   if (!sel) return;
@@ -905,7 +909,6 @@ function populateFormSubjects() {
   });
 }
 
-// Validation rules for each field
 function validateFormField(fieldId) {
   const el = document.getElementById(fieldId);
   const errEl = document.getElementById(fieldId + 'Err');
@@ -955,15 +958,12 @@ function validateFormField(fieldId) {
   return valid;
 }
 
-// Real-time validation on input/blur
 function setupRealtimeValidation() {
   const fields = ['fName','fEmail','fDate','fHours','fSubject','fTopics','fAgree'];
   fields.forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
-    // Validate on blur (when user leaves the field)
     el.addEventListener('blur', () => validateFormField(id));
-    // Validate on input for immediate feedback (after first interaction)
     el.addEventListener('input', () => {
       if (el.classList.contains('error') || (id === 'fAgree')) {
         validateFormField(id);
@@ -973,7 +973,6 @@ function setupRealtimeValidation() {
   });
 }
 
-// Form submit handler — demonstrates full validation
 function handleFormSubmit(e) {
   e.preventDefault();
   const fields = ['fName','fEmail','fDate','fHours','fSubject','fTopics','fAgree'];
@@ -1009,45 +1008,35 @@ function handleFormSubmit(e) {
       📝 ${topics}<br>
       ${difficulty === 'easy' ? '🟢' : difficulty === 'hard' ? '🔴' : '🟡'} ${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
     `;
-    // Scroll to result
     resultEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
     showFormToast('Study log saved!', 'success');
   } else {
     resultEl.style.display = 'block';
     resultEl.className = 'form-result error';
     resultEl.innerHTML = '<strong>❌ Form has errors.</strong> Please fix the highlighted fields and try again.';
-    // Focus first invalid field
     const firstError = document.querySelector('#studyForm .form-input.error, #studyForm .form-select.error');
     if (firstError) firstError.focus();
   }
 }
 
 function showFormToast(msg, type) {
-  // Use existing toast function or create a simple one
   if (typeof toast === 'function') {
     toast(msg, type);
   }
 }
 
-// Reset form handler
 function resetForm() {
   document.getElementById('studyForm').reset();
   document.querySelectorAll('#studyForm .form-error').forEach(el => el.classList.remove('show'));
   document.querySelectorAll('#studyForm .form-input, #studyForm .form-select').forEach(el => el.classList.remove('error'));
   document.getElementById('formResult').style.display = 'none';
-  // Set default date
   document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
 }
 
-// ================================================================
 // ===== DESTRUCTURING & COPY DEMOS =====
-// ================================================================
-
 function demoArrayDestruct() {
-  // Array Destructuring - swapping, rest, skip
   const numbers = [10, 20, 30, 40, 50];
   const [a, b, ...rest] = numbers;
-  // Also demonstrate swapping
   let x = 5, y = 10;
   [x, y] = [y, x];
 
@@ -1068,13 +1057,10 @@ const [first, , third] = [10, 20, 30];
 }
 
 function demoObjectDestruct() {
-  // Object Destructuring
   const student = { name: 'Shreya', age: 20, course: 'FEE', semester: 2 };
   const { name, age, ...rest } = student;
-  // Nested destructuring
   const person = { id: 1, address: { city: 'Delhi', country: 'India' } };
   const { address: { city, country } } = person;
-  // Default values
   const { score = 100 } = student;
 
   const out = document.getElementById('outObjectDestruct');
@@ -1095,20 +1081,14 @@ const {score = 100} = student;
 }
 
 function demoCopy() {
-  // Shallow Copy vs Deep Copy
   const original = { a: 1, b: { c: 2, d: [3, 4] } };
-
-  // Shallow copy using spread
   const shallowCopy = { ...original };
-  // Deep copy using JSON (method 1)
   const deepCopy = JSON.parse(JSON.stringify(original));
-  // Deep copy using structuredClone (method 2 - modern browsers)
   let deepCopy2;
   try { deepCopy2 = structuredClone(original); } catch(e) { deepCopy2 = JSON.parse(JSON.stringify(original)); }
 
-  // Modify nested property to show the difference
-  shallowCopy.b.c = 999;  // This ALSO changes original.b.c because shallow copy shares nested references
-  deepCopy.b.c = 777;     // This does NOT affect original
+  shallowCopy.b.c = 999;
+  deepCopy.b.c = 777;
 
   const out = document.getElementById('outCopy');
   out.innerHTML = `
@@ -1130,15 +1110,11 @@ deepCopy.b.c = <span class="highlight3">777</span>
   `;
 }
 
-// ================================================================
 // ===== JSON HANDLING DEMOS =====
-// ================================================================
-
 function getJsonInput() {
   const el = document.getElementById('jsonInput');
   if (!el) return null;
   try {
-    // Use eval-like parsing to handle unquoted keys (JS object literal syntax)
     return eval('(' + el.value + ')');
   } catch(e) {
     return null;
@@ -1152,11 +1128,9 @@ function demoStringify() {
     out.innerHTML = '<span class="highlight3">❌ Invalid JavaScript object syntax. Check your input.</span>';
     return;
   }
-
-  // JSON.stringify with different parameters
   const pretty = JSON.stringify(obj, null, 2);
   const compact = JSON.stringify(obj);
-  const filtered = JSON.stringify(obj, ['name', 'score'], 2); // only include name and score
+  const filtered = JSON.stringify(obj, ['name', 'score'], 2);
 
   out.innerHTML = `
 <span class="highlight">JSON.stringify() — JS Object → JSON String</span>
@@ -1179,14 +1153,12 @@ function demoParse() {
   const input = document.getElementById('jsonInput').value.trim();
   const out = document.getElementById('outJson');
 
-  // Try to parse as JSON first (if it's already JSON), otherwise show how parse works
   let isValidJson = false;
   let parsed = null;
   try {
     parsed = JSON.parse(input);
     isValidJson = true;
   } catch(e) {
-    // Not valid JSON - try converting JS object to JSON then parsing back
     try {
       const obj = eval('(' + input + ')');
       const jsonStr = JSON.stringify(obj);
@@ -1226,14 +1198,9 @@ function clearJsonOutput() {
   document.getElementById('outJson').innerHTML = '';
 }
 
-// ================================================================
 // ===== DOM MANIPULATION DEMOS =====
-// ================================================================
-
 function demoGetElementById() {
   const out = document.getElementById('outDomSelectors');
-  // getElementById demo
-  const title = document.getElementById('jsLabCard');
   const box1 = document.getElementById('domBox1');
   const box2 = document.getElementById('domBox2');
 
@@ -1251,7 +1218,6 @@ document.getElementById('domBox2') →
 
 function demoQuerySelector() {
   const out = document.getElementById('outDomSelectors');
-  // querySelector demo - first match
   const firstBox = document.querySelector('.dom-box');
   const firstLi = document.querySelector('.delegation-list li');
   const firstBtn = document.querySelector('.js-run-btn');
@@ -1273,7 +1239,6 @@ document.querySelector('.js-run-btn') →
 
 function demoQuerySelectorAll() {
   const out = document.getElementById('outDomSelectors');
-  // querySelectorAll demo
   const allBoxes = document.querySelectorAll('.dom-box');
   const allDetails = document.querySelectorAll('.js-lab-details');
   const allButtons = document.querySelectorAll('.btn-sm');
@@ -1294,7 +1259,6 @@ document.querySelectorAll('.btn-sm') →
 }
 
 function demoChangeHtml() {
-  // read & write HTML through JavaScript
   const box1 = document.getElementById('domBox1');
   const currentHtml = box1 ? box1.innerHTML : '';
   box1.innerHTML = '✨ Modified via <strong>innerHTML</strong>!';
@@ -1308,9 +1272,7 @@ function demoChangeHtml() {
 }
 
 function demoChangeCss() {
-  // read & write CSS through JavaScript
   const box2 = document.getElementById('domBox2');
-  const currentBg = box2 ? box2.style.background : '';
   box2.style.background = 'linear-gradient(135deg, #ff6b8a, #ff9ab3)';
   box2.style.color = '#fff';
   box2.style.transform = 'scale(1.05)';
@@ -1326,7 +1288,6 @@ box2.style.color = '#fff'
 }
 
 function demoCreateNode() {
-  // Creating, appending nodes
   const playground = document.getElementById('domPlayground');
   const newBox = document.createElement('div');
   newBox.className = 'dom-box-added';
@@ -1343,14 +1304,12 @@ playground.<strong>appendChild</strong>(newBox)
 }
 
 function demoDeleteNode() {
-  // Deleting nodes
   const playground = document.getElementById('domPlayground');
   const addedBoxes = playground.querySelectorAll('.dom-box-added');
   if (addedBoxes.length > 0) {
     const last = addedBoxes[addedBoxes.length - 1];
     const removedText = last.textContent;
-    last.remove(); // Modern way: element.remove()
-    // Alternative: playground.removeChild(last); // Traditional way
+    last.remove();
     const out = document.getElementById('outDomAction');
     out.innerHTML = `
 <span class="highlight">Deleting Nodes</span>
@@ -1366,9 +1325,7 @@ el.<strong>remove()</strong>  (or playground.removeChild(el))
 
 function demoResetDom() {
   const playground = document.getElementById('domPlayground');
-  // Remove added nodes
   playground.querySelectorAll('.dom-box-added').forEach(el => el.remove());
-  // Reset box 1
   const box1 = document.getElementById('domBox1');
   if (box1) {
     box1.innerHTML = '🟪 Box 1';
@@ -1377,7 +1334,6 @@ function demoResetDom() {
     box1.style.transform = '';
     box1.style.border = '';
   }
-  // Reset box 2
   const box2 = document.getElementById('domBox2');
   if (box2) {
     box2.innerHTML = '🟨 Box 2';
@@ -1390,11 +1346,7 @@ function demoResetDom() {
   out.innerHTML = '<span class="highlight">↺ DOM Playground reset to initial state.</span>';
 }
 
-// ================================================================
 // ===== EVENT HANDLING DEMOS =====
-// ================================================================
-
-// Event Bubbling — inner -> middle -> outer
 function setupBubbling() {
   const outEl = document.getElementById('outBubble');
   outEl.innerHTML = '<span class="highlight2">🔄 Bubbling mode active! Click the colored boxes below.</span>';
@@ -1403,18 +1355,15 @@ function setupBubbling() {
   const mid = document.getElementById('bubbleMid');
   const inner = document.getElementById('bubbleInner');
 
-  // Remove old listeners first (clone and replace to prevent duplicates)
   [outer, mid, inner].forEach(el => {
     const clone = el.cloneNode(true);
     el.parentNode.replaceChild(clone, el);
   });
 
-  // Re-query after replacement
   const newOuter = document.getElementById('bubbleOuter');
   const newMid = document.getElementById('bubbleMid');
   const newInner = document.getElementById('bubbleInner');
 
-  // Add bubbling listeners (default: bubble phase)
   newInner.addEventListener('click', function(e) {
     this.classList.add('clicked');
     outEl.innerHTML += `\n🟥 Inner clicked (1st) — ${this.textContent.trim()}`;
@@ -1437,7 +1386,6 @@ function setupBubbling() {
   outEl.scrollTop = outEl.scrollHeight;
 }
 
-// Event Capturing — outer -> middle -> inner
 function setupCapturing() {
   const outEl = document.getElementById('outBubble');
   outEl.innerHTML = '<span class="highlight2">🔄 Capturing mode active! Click the colored boxes below.</span>';
@@ -1446,18 +1394,15 @@ function setupCapturing() {
   const mid = document.getElementById('bubbleMid');
   const inner = document.getElementById('bubbleInner');
 
-  // Remove old listeners first
   [outer, mid, inner].forEach(el => {
     const clone = el.cloneNode(true);
     el.parentNode.replaceChild(clone, el);
   });
 
-  // Re-query
   const newOuter = document.getElementById('bubbleOuter');
   const newMid = document.getElementById('bubbleMid');
   const newInner = document.getElementById('bubbleInner');
 
-  // Add capturing listeners (third argument: true)
   newOuter.addEventListener('click', function(e) {
     this.classList.add('clicked');
     outEl.innerHTML += `\n🟩 Outer caught (1st - capturing!) — ${this.textContent.trim()}`;
@@ -1480,18 +1425,15 @@ function setupCapturing() {
   outEl.scrollTop = outEl.scrollHeight;
 }
 
-// Event Delegation Demo
 let delegationCounter = 3;
 
 function setupDelegation() {
   const list = document.getElementById('delegationList');
   if (!list) return;
 
-  // Use event delegation — ONE listener for ALL list items
   list.addEventListener('click', function(e) {
     const li = e.target.closest('li');
     if (!li) return;
-    // Highlight the clicked item
     document.querySelectorAll('.delegation-list li').forEach(l => l.classList.remove('highlighted'));
     li.classList.add('highlighted');
     const out = document.getElementById('outDelegation');
@@ -1533,10 +1475,7 @@ function demoDelegation() {
   `;
 }
 
-// ================================================================
-// ===== BOM — BROWSER OBJECT MODEL DEMOS =====
-// ================================================================
-
+// ===== BOM DEMOS =====
 function demoNavigator() {
   const out = document.getElementById('outBomInfo');
   out.innerHTML = `
@@ -1640,26 +1579,29 @@ You entered: <span class="highlight3">"${result}"</span>
   }
 }
 
-// ===== INITIALIZE NEW FEATURES =====
+// ===== INIT NEW FEATURES =====
 function initNewFeatures() {
-  // Form validation setup
   const form = document.getElementById('studyForm');
   if (form) {
-    // Set default date
     const dateField = document.getElementById('fDate');
     if (dateField) dateField.value = new Date().toISOString().split('T')[0];
-    // Populate subjects
     populateFormSubjects();
-    // Real-time validation
     setupRealtimeValidation();
-    // Submit handler
     form.addEventListener('submit', handleFormSubmit);
-    // Reset handler
     form.addEventListener('reset', resetForm);
   }
-
-  // Event delegation setup
   setupDelegation();
+}
+
+// ===== GREETING =====
+function updateGreeting() {
+  const hour = new Date().getHours();
+  let greet = 'Good Day';
+  if (hour < 12) greet = 'Good Morning';
+  else if (hour < 18) greet = 'Good Afternoon';
+  else greet = 'Good Evening';
+  const el = document.getElementById('greetTime');
+  if (el) el.textContent = greet;
 }
 
 // ===== INIT =====
@@ -1671,7 +1613,7 @@ function init() {
   renderSchedule();
   updatePomoDisplay();
   setInterval(updateGreeting, 60000);
-  // Animate progress bars after a brief delay
+
   setTimeout(() => {
     document.querySelectorAll('.progress-bar').forEach(bar => {
       const w = bar.style.width;
@@ -1680,33 +1622,33 @@ function init() {
     });
   }, 300);
 
-  // Initialize new features (form validation, JS lab)
   initNewFeatures();
 }
 init();
 
+// ===== AUTO SAVE =====
 let saveTimeout = null;
+
 function setupAutoSave() {
   const saveStateWithDebounce = () => {
     clearTimeout(saveTimeout);
     saveTimeout = setTimeout(() => {
       saveState();
       showAutoSaveIndicator();
-    }, 1000); // Save 1 second after last change
+    }, 2000);
   };
 
-  // Watch for changes in form fields
   document.querySelectorAll('input, textarea, select').forEach(el => {
-    el.addEventListener('input', saveStateWithDebounce);
-    el.addEventListener('change', saveStateWithDebounce);
-  });
+    if (
+      el.closest('.modal-overlay') ||
+      el.closest('#studyForm')      ||
+      el.closest('#taskModal')      ||
+      el.closest('#subjectModal')   ||
+      el.closest('#goalModal')      ||
+      el.closest('#scheduleModal')
+    ) return;
 
-  // Watch for changes in task/subjects/goals
-  window.addEventListener('storage', (e) => {
-    if (e.key === 'smartplanner_v1') {
-      loadState();
-      renderAll();
-    }
+    el.addEventListener('change', saveStateWithDebounce);
   });
 }
 
@@ -1720,21 +1662,18 @@ function showAutoSaveIndicator() {
   }
 }
 
-// Import/Export functionality
+// ===== EXPORT =====
 function exportData() {
   window.print();
 }
 
-
-
-// Setup event listeners
 document.addEventListener('DOMContentLoaded', () => {
   const btn = document.getElementById('exportDataBtn');
   if (btn) {
     btn.addEventListener('click', exportData);
   }
 });
-// Import button (hidden until import feature is built)
+
 const importBtn = document.getElementById('importBtn');
 if (importBtn) {
   importBtn.addEventListener('click', function() {
@@ -1742,70 +1681,50 @@ if (importBtn) {
   });
 }
 
-// Initialize auto-save when page loads
 document.addEventListener('DOMContentLoaded', setupAutoSave);
-// ===== EVENT BUBBLING & CAPTURING =====
 
+// ===== EVENT BUBBLING & CAPTURING =====
 const outerBox = document.getElementById('outerBox');
 const innerBox = document.getElementById('innerBox');
 const demoBtn = document.getElementById('demoBtn');
 
 if(outerBox && innerBox && demoBtn){
-
   outerBox.addEventListener('click', () => {
     console.log('Outer Div Bubbling');
   });
-
   innerBox.addEventListener('click', () => {
     console.log('Inner Div Bubbling');
   });
-
   demoBtn.addEventListener('click', () => {
     console.log('Button Clicked');
   });
-
-  // Capturing
   outerBox.addEventListener('click', () => {
     console.log('Outer Div Capturing');
   }, true);
-
 }
+
 // ===== CALLBACK FUNCTION =====
-
 function fetchData(callback){
-
   setTimeout(() => {
-
     console.log('Data fetched');
-
     callback();
-
   }, 1000);
-
 }
-
 fetchData(function(){
-
   console.log('Callback executed');
-
 });
+
 // ===== PROMISE =====
-
 const projectPromise = new Promise((resolve, reject) => {
-
   let projectCompleted = true;
-
   setTimeout(() => {
-
     if(projectCompleted){
       resolve('Project Submitted Successfully');
     }
     else{
       reject('Project Failed');
     }
-
   }, 2000);
-
 });
 
 projectPromise
@@ -1815,60 +1734,38 @@ projectPromise
 .catch(error => {
   console.log(error);
 });
+
 // ===== EVENT DELEGATION =====
-
 document.addEventListener('click', function(e){
-
   if(e.target.classList.contains('dynamic-task-btn')){
-
     alert('Dynamic Task Clicked');
-
   }
-
 });
+
 // ===== DEEP COPY & SHALLOW COPY =====
-
 function copyExamples(){
-
   const originalTask = {
     title:'Frontend Project',
     marks:{
       viva:20
     }
   };
-
-  // Shallow Copy
   const shallowCopy = { ...originalTask };
-
-  // Deep Copy
-  const deepCopy =
-    JSON.parse(JSON.stringify(originalTask));
-
+  const deepCopy = JSON.parse(JSON.stringify(originalTask));
   console.log(originalTask);
   console.log(shallowCopy);
   console.log(deepCopy);
-
 }
-
 copyExamples();
+
 // ===== BOM =====
-
 window.addEventListener('load', () => {
-
-  const browserInfo =
-    document.getElementById('browserInfo');
-
-  const currentURL =
-    document.getElementById('currentURL');
-
+  const browserInfo = document.getElementById('browserInfo');
+  const currentURL = document.getElementById('currentURL');
   if(browserInfo){
-    browserInfo.innerHTML =
-      `Browser: ${navigator.userAgent}`;
+    browserInfo.innerHTML = `Browser: ${navigator.userAgent}`;
   }
-
   if(currentURL){
-    currentURL.innerHTML =
-      `Current URL: ${location.href}`;
+    currentURL.innerHTML = `Current URL: ${location.href}`;
   }
-
 });
