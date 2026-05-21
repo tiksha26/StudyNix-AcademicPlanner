@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SmartPlanner — Academic Productivity Dashboard</title>
+<link href="style.css" rel="stylesheet">
+<link rel="icon" href="icon r.jpeg" type="image/png">
+</head>
+<body>
+<!-- ===== LOGIN / VALIDATION SCREEN ===== -->
+<div class="welcome-screen" id="welcomeScreen">
+  <div class="welcome-card">
+    <h1>SmartStudyNix</h1>
+    <p class="welcome-sub">Academic Productivity Dashboard</p>
+
+    <form id="welcomeForm">
+      <div class="welcome-group">
+        <label>Student Name</label>
+        <input type="text" id="studentName" placeholder="Enter your name" required>
+        <small class="error-text" id="nameError"></small>
+      </div>
+
+      <div class="welcome-group">
+        <label>Email</label>
+        <input type="email" id="studentEmail" placeholder="Enter your email" required>
+        <small class="error-text" id="emailError"></small>
+      </div>
+
+      <div class="welcome-group">
+        <label>Semester</label>
+        <select id="studentSemester">
+          <option value="">Select Semester</option>
+          <option>Semester 1</option>
+          <option>Semester 2</option>
+          <option>Semester 3</option>
+          <option>Semester 4</option>
+        </select>
+        <small class="error-text" id="semesterError"></small>
+      </div>
+
+      <button type="submit" class="welcome-btn">
+        Enter Dashboard
+      </button>
+    </form>
+  </div>
+</div>
+
+
+<div class="shell">
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <button class="hamburger" id="hamburgerBtn">☰</button>
+      <div class="logo">
+        <div class="logo-mark">🎓</div>
+        <div class="logo-text">Smart<span>StudyNix</span></div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="date-chip" id="dateChip"></div>
+      <button class="theme-btn" id="themeBtn" title="Toggle theme">🌙</button>
+     <button id="exportDataBtn" class="btn btn-secondary" title="Export data" onclick="exportData()">Export Data</button>
+      
+    </div>
+  </header>
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-section-label">Navigation</div>
+    <div class="nav-item active" data-panel="dashboard">
+      <span class="nav-icon">📊</span> Dashboard
+    </div>
+    <div class="nav-item" data-panel="tasks">
+      <span class="nav-icon">✅</span> Task Manager
+      <span class="nav-badge" id="taskBadge">0</span>
+    </div>
+    <div class="nav-item" data-panel="subjects">
+      <span class="nav-icon">📚</span> Subjects
+    </div>
+    <div class="nav-item" data-panel="schedule">
+      <span class="nav-icon">📅</span> Schedule
+    </div>
+    <div class="nav-item" data-panel="goals">
+      <span class="nav-icon">🎯</span> Goals
+    </div>
+    <div class="nav-item" data-panel="analytics">
+      <span class="nav-icon">📈</span> Analytics
+    </div>
+    <div class="nav-item" data-panel="pomodoro">
+      <span class="nav-icon">⏱</span> Pomodoro Timer
+    </div>
+    <div class="divider" style="margin:12px 16px;"></div>
+    <div class="nav-item" data-panel="settings">
+      <span class="nav-icon">⚙️</span> Settings
+    </div>
+    <div class="sidebar-stats">
+      <div class="sidebar-stats-title">Quick Stats</div>
+      <div class="mini-stat"><span>Completed</span><span class="mini-stat-val" id="sideCompletedPct">0%</span></div>
+      <div class="mini-stat"><span>Pending</span><span class="mini-stat-val" id="sidePendingCount">0%</span></div>
+      <div class="mini-stat"><span>Overdue</span><span class="mini-stat-val" id="sideOverdueCount" style="color:var(--accent2)">0%</span></div>
+    </div>
+  </nav>
+  <div class="overlay-close" id="overlayClose"></div>
+
+  <!-- MAIN AREA -->
+  <main class="main">
+
+    <!-- ===== DASHBOARD ===== -->
+    <section class="panel active" id="panel-dashboard">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Good <em id="greetTime">day</em>, Scholar 👋</div>
+          <div class="page-subtitle">Here's your academic overview for the day.</div>
+        </div>
+        <button class="btn btn-primary" onclick="openAddTask()">+ Add Task</button>
+      </div>
+
+      <!-- Stats Row -->
+      <div class="stats-grid">
+        <div class="stat-card purple">
+          <div class="stat-icon">📋</div>
+          <div class="stat-val" id="statTotal">0</div>
+          <div class="stat-label">Total Tasks</div>
+          <div class="stat-delta" id="statTotalDelta">All subjects</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-icon">✅</div>
+          <div class="stat-val" id="statDone">0</div>
+          <div class="stat-label">Completed</div>
+          <div class="stat-delta" id="statDonePct">0% done</div>
+        </div>
+        <div class="stat-card orange">
+          <div class="stat-icon">🔥</div>
+          <div class="stat-val" id="statPending">0</div>
+          <div class="stat-label">In Progress</div>
+          <div class="stat-delta">Active tasks</div>
+        </div>
+        <div class="stat-card pink">
+          <div class="stat-icon">⚠️</div>
+          <div class="stat-val" id="statOverdue">0</div>
+          <div class="stat-label">Overdue</div>
+          <div class="stat-delta">Need attention</div>
+        </div>
+      </div>
+
+      <!-- AI Recommendation -->
+      <div class="recommendation-banner" id="recBanner">
+        <div class="rec-label">AI Study Recommendation</div>
+        <div class="rec-title">Your Prioritized Study Queue</div>
+        <div class="rec-body">Based on deadlines, priority levels, and workload distribution, here's your optimal study sequence for today:</div>
+        <div class="rec-tasks" id="recTasks">
+          <div class="empty-state" style="padding:20px">
+            <div class="empty-icon">🤖</div>
+            <div class="empty-body">Add tasks to get AI-powered study recommendations.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Overall Progress -->
+      <div class="card">
+        <div class="card-title">Overall Academic Progress</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <span style="font-size:0.85rem;color:var(--text2)">Completion Rate</span>
+          <span style="font-family:var(--font-mono);font-size:0.9rem;font-weight:600;" id="overallPct">0%</span>
+        </div>
+        <div class="progress-wrap">
+          <div class="progress-bar" id="overallBar" style="width:0%"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:20px;">
+          <div style="text-align:center;">
+            <div style="font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;font-size:1.2rem;font-weight:700;color:var(--accent2);" id="critCount">0</div>
+            <div style="font-size:0.7rem;color:var(--text3);">Critical</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;font-size:1.2rem;font-weight:700;color:var(--accent4);" id="highCount">0</div>
+            <div style="font-size:0.7rem;color:var(--text3);">High</div>
+          </div>
+          <div style="font-family:s;font-size:1.2rem;font-weight:700;color:var(--accent);text-align:center;">
+            <div id="medCount">0</div>
+            <div style="font-size:0.7rem;color:var(--text3);">Medium</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-family:var(--font-mono);font-size:1.2rem;font-weight:700;color:var(--accent3);" id="lowCount">0</div>
+            <div style="font-size:0.7rem;color:var(--text3);">Low</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Today's Tasks -->
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <div class="card-title" style="margin-bottom:0;">Today's Urgent Tasks</div>
+          <button class="btn btn-secondary btn-sm" onclick="switchPanel('tasks')">View All →</button>
+        </div>
+        <div class="task-list" id="dashTaskList"></div>
+      </div>
+    </section>
+
+    <!-- ===== TASK MANAGER ===== -->
+    <section class="panel" id="panel-tasks">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Task <em>Manager</em></div>
+          <div class="page-subtitle">Add, organize, and track all your assignments.</div>
+        </div>
+        <button class="btn btn-primary" onclick="openAddTask()">+ New Task</button>
+      </div>
+
+      <!-- Filter Bar -->
+      <div class="filter-bar">
+        <div class="filter-chip active" data-filter="all">All</div>
+        <div class="filter-chip" data-filter="pending">Pending</div>
+        <div class="filter-chip" data-filter="in-progress">In Progress</div>
+        <div class="filter-chip" data-filter="done">Done</div>
+        <div class="filter-chip" data-filter="critical">🔴 Critical</div>
+        <div class="filter-chip" data-filter="overdue">⚠ Overdue</div>
+        <input class="search-input" id="taskSearch" placeholder="🔍  Search tasks..." oninput="renderTasks()"/>
+      </div>
+
+      <div class="task-list" id="fullTaskList"></div>
+    </section>
+
+    <!-- ===== SUBJECTS ===== -->
+    <section class="panel" id="panel-subjects">
+      <div class="page-header">
+        <div>
+          <div class="page-title">My <em>Subjects</em></div>
+          <div class="page-subtitle">Track progress per course.</div>
+        </div>
+        <button class="btn btn-primary" onclick="openAddSubject()">+ Add Subject</button>
+      </div>
+      <div class="subject-grid" id="subjectGrid"></div>
+    </section>
+
+    <!-- ===== SCHEDULE ===== -->
+    <section class="panel" id="panel-schedule">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Weekly <em>Schedule</em></div>
+          <div class="page-subtitle">Your study timetable at a glance.</div>
+        </div>
+        <button class="btn btn-primary" onclick="openAddSchedule()">+ Add Event</button>
+      </div>
+      <div class="week-grid" id="weekGrid"></div>
+    </section>
+
+    <!-- ===== GOALS ===== -->
+    <section class="panel" id="panel-goals">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Academic <em>Goals</em></div>
+          <div class="page-subtitle">Set and track long-term milestones.</div>
+        </div>
+        <button class="btn btn-primary" onclick="openAddGoal()">+ New Goal</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;" id="goalList"></div>
+    </section>
+
+    <!-- ===== ANALYTICS ===== -->
+    <section class="panel" id="panel-analytics">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Productivity <em>Analytics</em></div>
+          <div class="page-subtitle">Insights into your academic performance.</div>
+        </div>
+      </div>
+
+      <div class="analytics-grid">
+        <div class="card">
+          <div class="card-title">Tasks by Subject</div>
+          <div class="bar-chart-wrap" id="subjectBarChart"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Status Distribution</div>
+          <div class="donut-wrap">
+            <svg class="donut-svg" width="120" height="120" viewBox="0 0 120 120" id="donutChart">
+              <circle cx="60" cy="60" r="48" fill="none" stroke="var(--bg4)" stroke-width="16"/>
+            </svg>
+            <div class="donut-legend" id="donutLegend"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="analytics-grid">
+        <div class="card">
+          <div class="card-title">Priority Breakdown</div>
+          <div class="bar-chart-wrap" id="priorityBarChart"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Weekly Productivity</div>
+          <div class="bar-chart-wrap" id="weeklyBarChart"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== POMODORO ===== -->
+    <section class="panel" id="panel-pomodoro">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Pomodoro <em>Timer</em></div>
+          <div class="page-subtitle">Focus sessions for deep work.</div>
+        </div>
+      </div>
+      <div class="card" style="max-width:420px;margin:0 auto;width:100%;">
+        <div class="tabs">
+          <div class="tab active" data-pomo="25">🍅 Pomodoro</div>
+          <div class="tab" data-pomo="5">☕ Short Break</div>
+          <div class="tab" data-pomo="15">🌿 Long Break</div>
+        </div>
+        <div class="pomodoro-wrap">
+          <div class="pomodoro-display" id="pomodoroDisplay" style="--pct:0%">
+            <div class="pomo-time" id="pomoTime">25:00</div>
+            <div class="pomo-label" id="pomoLabel">Focus</div>
+          </div>
+          <div class="pomo-controls">
+            <button class="btn btn-primary" id="pomoStartBtn" onclick="togglePomodoro()">▶ Start</button>
+            <button class="btn btn-secondary" onclick="resetPomodoro()">↺ Reset</button>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-family:var(--font-mono);font-size:0.75rem;color:var(--text3);">Sessions completed today</div>
+            <div style="font-family:var(--font-mono);font-size:1.6rem;font-weight:700;color:var(--accent);" id="pomoSessions">0</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== SETTINGS ===== -->
+    <section class="panel" id="panel-settings">
+      <div class="page-header">
+        <div>
+          <div class="page-title">App <em>Settings</em></div>
+          <div class="page-subtitle">Customize your planner experience.</div>
+        </div>
+      </div>
+      <div class="card" style="max-width:600px;">
+        <div class="card-title">Student Profile</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Your Name</label>
+            <input class="form-input" id="settingName" placeholder="e.g=Shreya" oninput="saveSetting('name',this.value)"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Semester / Year</label>
+            <input class="form-input" id="settingSemester" placeholder="e.g. Semester 2 - 2026" oninput="saveSetting('semester',this.value)"/>
+          </div>
+        </div>
+        <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border);">
+          <div class="card-title">Data Management</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;">
+            <button class="btn btn-secondary btn-sm" onclick="exportData()">⬇ Export Data</button>
+            <button class="btn btn-danger btn-sm" onclick="clearAllData()">🗑 Clear All Data</button>
+          </div>
+        </div>
+        <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border);">
+          <div class="card-title">About</div>
+          <div class="card" style="margin-top:20px;">
+  <div class="card-title">This website is created to help students organize their academic schedule, mark down their tasks, list their goals and work accordingly to achieve them.</div>
+
+  <p id="browserInfo" style="margin-bottom:10px;"></p>
+  <p id="currentURL"></p>
+</div>
+          <div style="font-size:0.82rem;color:var(--text2);line-height:1.7;">
+            <strong>SmartPlanner v1.0</strong><br/>
+            AI-Inspired Academic Planner & Productivity Dashboard<br/>
+            Built with HTML5 · CSS3 · JavaScript<br/>
+            Front End Engineering – I Course Project
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ===== MODALS ===== -->
+
+<!-- Add/Edit Task Modal -->
+<div class="modal-overlay" id="taskModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="taskModalTitle">New Task</div>
+      <button class="modal-close" onclick="closeModal('taskModal')">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group" style="grid-column:1/-1;">
+        <label class="form-label">Task Name *</label>
+        <input class="form-input" id="tName" placeholder="e.g. Complete Data Structures Assignment"/>
+        <div class="form-error" id="tNameErr">Task name is required.</div>
+      </div>
+      <div class="form-group" style="grid-column:1/-1;">
+        <label class="form-label">Description</label>
+        <textarea class="form-textarea" id="tDesc" placeholder="Brief notes about this task..."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Subject *</label>
+        <select class="form-select" id="tSubject">
+          <option value="">Select subject</option>
+        </select>
+        <div class="form-error" id="tSubjectErr">Please select a subject.</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Priority *</label>
+        <select class="form-select" id="tPriority">
+          <option value="">Select priority</option>
+          <option value="critical">🔴 Critical</option>
+          <option value="high">🟠 High</option>
+          <option value="medium">🟣 Medium</option>
+          <option value="low">🟢 Low</option>
+        </select>
+        <div class="form-error" id="tPriorityErr">Priority is required.</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Deadline *</label>
+        <input class="form-input" type="date" id="tDeadline"/>
+        <div class="form-error" id="tDeadlineErr">Deadline is required.</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Status</label>
+        <select class="form-select" id="tStatus">
+          <option value="pending">Pending</option>
+          <option value="in-progress">In Progress</option>
+          <option value="done">Done</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Estimated Hours</label>
+        <input class="form-input" type="number" id="tHours" placeholder="e.g. 3" min="0.5" max="100" step="0.5"/>
+      </div>
+    </div>
+    <div class="form-actions" style="margin-top:20px;">
+      <button class="btn btn-primary" onclick="saveTask()">💾 Save Task</button>
+      <button class="btn btn-secondary" onclick="closeModal('taskModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Subject Modal -->
+<div class="modal-overlay" id="subjectModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="subjectModalTitle">Add Subject</div>
+      <button class="modal-close" onclick="closeModal('subjectModal')">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group" style="grid-column:1/-1;">
+        <label class="form-label">Subject Name *</label>
+        <input class="form-input" id="sName" placeholder="e.g. Data Structures & Algorithms"/>
+        <div class="form-error" id="sNameErr">Subject name is required.</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Subject Code</label>
+        <input class="form-input" id="sCode" placeholder="e.g. 25CSE0105"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Instructor</label>
+        <input class="form-input" id="sInstructor" placeholder="e.g. Deepak Sir"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Color Theme</label>
+        <select class="form-select" id="sColor">
+          <option value="purple">🟣 Purple</option>
+          <option value="pink">🩷 Pink</option>
+          <option value="green">🟢 Teal</option>
+          <option value="orange">🟠 Orange</option>
+          <option value="blue">🔵 Blue</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Emoji / Icon</label>
+        <input class="form-input" id="sEmoji" placeholder="e.g. 💻" maxlength="2"/>
+      </div>
+    </div>
+    <div class="form-actions" style="margin-top:20px;">
+      <button class="btn btn-primary" onclick="saveSubject()">💾 Save Subject</button>
+      <button class="btn btn-secondary" onclick="closeModal('subjectModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Goal Modal -->
+<div class="modal-overlay" id="goalModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">New Goal</div>
+      <button class="modal-close" onclick="closeModal('goalModal')">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group" style="grid-column:1/-1;">
+        <label class="form-label">Goal Title *</label>
+        <input class="form-input" id="gTitle" placeholder="e.g. Score 90% in Final Exams"/>
+        <div class="form-error" id="gTitleErr">Goal title is required.</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Target Date *</label>
+        <input class="form-input" type="date" id="gDeadline"/>
+        <div class="form-error" id="gDeadlineErr">Target date is required.</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Progress (%)</label>
+        <input class="form-input" type="number" id="gProgress" value="0" min="0" max="100"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Icon</label>
+        <input class="form-input" id="gIcon" placeholder="e.g. 🏆" maxlength="2" value="🎯"/>
+      </div>
+    </div>
+    <div class="form-actions" style="margin-top:20px;">
+      <button class="btn btn-primary" onclick="saveGoal()">💾 Save Goal</button>
+      <button class="btn btn-secondary" onclick="closeModal('goalModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Schedule Event Modal -->
+<div class="modal-overlay" id="scheduleModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Add Schedule Event</div>
+      <button class="modal-close" onclick="closeModal('scheduleModal')">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group" style="grid-column:1/-1;">
+        <label class="form-label">Event Title *</label>
+        <input class="form-input" id="evTitle" placeholder="e.g. Calculus Lecture"/>
+        <div class="form-error" id="evTitleErr">Event title is required.</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Day *</label>
+        <select class="form-select" id="evDay">
+          <option value="0">Monday</option>
+          <option value="1">Tuesday</option>
+          <option value="2">Wednesday</option>
+          <option value="3">Thursday</option>
+          <option value="4">Friday</option>
+          <option value="5">Saturday</option>
+          <option value="6">Sunday</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Time</label>
+        <input class="form-input" type="time" id="evTime" value="09:00"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Color</label>
+        <select class="form-select" id="evColor">
+          <option value="purple">Purple</option>
+          <option value="pink">Pink</option>
+          <option value="green">Teal</option>
+          <option value="orange">Orange</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-actions" style="margin-top:20px;">
+      <button class="btn btn-primary" onclick="saveScheduleEvent()">💾 Save Event</button>
+      <button class="btn btn-secondary" onclick="closeModal('scheduleModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast"></div>
+
+<!-- Auto-save indicator -->
+<div id="autosaveIndicator" class="autosave-indicator" style="display:none;">💾 Saved</div>
+
+<script src="script.js"></script>
+</body>
+</html>
